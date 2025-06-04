@@ -2322,13 +2322,56 @@ def scrape():
         if not url:
             return jsonify({'error': 'URL is required'}), 400
 
+        print(f"Attempting to scrape: {url}")
+
         scraper = ProductScraper()
         product_data = scraper.scrape_product(url)
 
         return jsonify(product_data)
 
+    except requests.exceptions.HTTPError as e:
+        # Handle HTTP errors (like 500 from Amazon)
+        print(f"HTTP Error from website: {e}")
+        if "500" in str(e):
+            return jsonify({
+                'error': 'The website blocked our request. Please enter details manually.',
+                'name': 'Product name not found',
+                'price': 'Price not found',
+                'currency': 'CAD',
+                'brand': '',
+                'description': 'Amazon is blocking automated access. Please copy product details manually.',
+                'images': [],
+                'blocked': True,
+                'message': 'Amazon detected automated access. Please enter product details manually.'
+            }), 200
+        else:
+            return jsonify({
+                'error': f'Website error: {str(e)}',
+                'name': 'Product name not found',
+                'price': 'Price not found',
+                'blocked': True
+            }), 200
+
+    except requests.exceptions.Timeout:
+        print(f"Timeout error for URL: {url}")
+        return jsonify({
+            'error': 'Request timed out',
+            'name': 'Product name not found',
+            'price': 'Price not found',
+            'blocked': True
+        }), 200
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Scraping error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        return jsonify({
+            'error': 'Unable to scrape this product. Please enter details manually.',
+            'name': 'Product name not found',
+            'price': 'Price not found',
+            'blocked': True
+        }), 200
 
 
 @app.route('/submit', methods=['POST'])
